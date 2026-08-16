@@ -2,20 +2,16 @@ name: "Build Android SO"
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
-  android-so:
-    name: Build Android .so
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 1
           submodules: true
 
       - name: Setup NDK
@@ -24,31 +20,11 @@ jobs:
           unzip android-ndk-r27d-linux.zip
           echo "ANDROID_NDK=$PWD/android-ndk-r27d" >> $GITHUB_ENV
 
-      - name: Prepare jni folder
-        run: |
-          mkdir -p jni
-          cp Android.mk jni/
-          cp Application.mk jni/
+      - name: Build hev-socks5-tunnel
+        run: $ANDROID_NDK/ndk-build APP_MODULES=hev-socks5-tunnel -j$(nproc)
 
-      - name: Build .so for all ABIs
-        run: |
-          $ANDROID_NDK/ndk-build APP_MODULES=hev-socks5-tunnel -j$(nproc)
-          
-          # Crea cartella per gli artifact
-          mkdir -p artifacts
-          
-          # Copia i .so con nome chiaro
-          for abi in armeabi-v7a arm64-v8a x86 x86_64; do
-            if [ -f "libs/$abi/libhev-socks5-tunnel.so" ]; then
-              cp "libs/$abi/libhev-socks5-tunnel.so" "artifacts/libhev-socks5-tunnel-$abi.so"
-              echo "✅ Copiato: $abi"
-            fi
-          done
-
-      - name: Upload .so artifacts
+      - name: Upload .so
         uses: actions/upload-artifact@v7
         with:
           name: hev-socks5-tunnel-so
-          path: artifacts/*.so
-          if-no-files-found: error
-          retention-days: 30
+          path: libs/*/libhev-socks5-tunnel.so
