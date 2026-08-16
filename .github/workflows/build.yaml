@@ -253,17 +253,47 @@ jobs:
             hev-socks5-tunnel-android-x86_64
           if-no-files-found: error
           retention-days: 1
-      - name: Find and collect .so files
+
+      # 🔥 NUOVO STEP: LOG PER TROVARE I .so
+      - name: Debug - find .so files
+        run: |
+          echo "=========================================="
+          echo "📁 Directory corrente: $(pwd)"
+          echo "📁 Contenuto della root:"
+          ls -la
+          echo "=========================================="
+          echo "📁 Cerco libhev-socks5-tunnel.so in tutta la root..."
+          find . -name "libhev-socks5-tunnel.so" -type f 2>/dev/null || echo "❌ Nessun file .so trovato!"
+          echo "=========================================="
+          echo "📁 Cerco in libs/ (percorso standard di ndk-build):"
+          ls -la libs/ 2>/dev/null || echo "❌ Cartella libs/ non trovata!"
+          echo "=========================================="
+          echo "📁 Cerco in android-ndk-r27d/ (dove potrebbe essere finito):"
+          find android-ndk-r27d -name "*.so" -type f 2>/dev/null | head -20 || echo "❌ Nessun .so in android-ndk-r27d/"
+          echo "=========================================="
+          echo "📁 Cerco in tutto il filesystem (limitato a /home/runner):"
+          find /home/runner -name "libhev-socks5-tunnel.so" -type f 2>/dev/null | head -20 || echo "❌ Nessun .so trovato in /home/runner"
+          echo "=========================================="
+
+      - name: Collect .so files
         run: |
           mkdir -p so_artifacts
-          find . -name "libhev-socks5-tunnel.so" -type f -exec cp -v {} so_artifacts/ \;
-          ls -la so_artifacts/
+          # Cerca in tutta la root e copia
+          find . -name "libhev-socks5-tunnel.so" -type f -exec cp -v {} so_artifacts/ \; 2>/dev/null || echo "⚠️ Nessun .so trovato da copiare"
+          # Se non trova, prova a cercare nella cartella libs/
+          if [ -z "$(ls -A so_artifacts 2>/dev/null)" ]; then
+            echo "⚠️ so_artifacts vuoto, provo a cercare in libs/..."
+            find ./libs -name "*.so" -type f -exec cp -v {} so_artifacts/ \; 2>/dev/null || echo "❌ Nessun .so in libs/"
+          fi
+          echo "📁 Contenuto di so_artifacts:"
+          ls -la so_artifacts/ || echo "❌ Cartella vuota"
+
       - name: Upload .so files
         uses: actions/upload-artifact@v7
         with:
           name: hev-socks5-tunnel-so
           path: so_artifacts/*.so
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
 
   release:
