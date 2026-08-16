@@ -253,11 +253,16 @@ jobs:
             hev-socks5-tunnel-android-x86_64
           if-no-files-found: error
           retention-days: 1
+      - name: Collect .so files
+        run: |
+          mkdir -p so_artifacts
+          find ./libs -name "libhev-socks5-tunnel.so" -type f -exec cp {} so_artifacts/ \;
+          ls -la so_artifacts/
       - name: Upload .so files
         uses: actions/upload-artifact@v7
         with:
           name: hev-socks5-tunnel-so
-          path: libs/*/libhev-socks5-tunnel.so
+          path: so_artifacts/*.so
           if-no-files-found: error
           retention-days: 30
 
@@ -433,4 +438,4 @@ jobs:
             $(printf 'ghcr.io/${{ steps.repo.outputs.repository }}@sha256:%s ' *)
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ghcr.io/${{ steps.repo.outputs.repository }}:${{ steps.docker_meta.outputs.version }} 
+          docker buildx imagetools inspect ghcr.io/${{ steps.repo.outputs.repository }}:${{ steps.docker_meta.outputs.version }}
