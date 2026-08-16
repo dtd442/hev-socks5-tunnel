@@ -1,30 +1,45 @@
-name: "Build Android SO"
-
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: true
-
-      - name: Setup NDK
-        run: |
-          wget https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
-          unzip android-ndk-r27d-linux.zip
-          echo "ANDROID_NDK=$PWD/android-ndk-r27d" >> $GITHUB_ENV
-
-      - name: Build hev-socks5-tunnel
-        run: $ANDROID_NDK/ndk-build APP_MODULES=hev-socks5-tunnel -j$(nproc)
-
-      - name: Upload .so
-        uses: actions/upload-artifact@v7
-        with:
-          name: hev-socks5-tunnel-so
-          path: libs/*/libhev-socks5-tunnel.so
+android:
+  name: Android
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 1
+        submodules: true
+    - name: Prepare
+      run: |
+        wget https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
+        unzip android-ndk-r27d-linux.zip
+        ln -sf . jni
+    - name: Build android-so
+      if: github.event_name != 'release'
+      run: |
+        ./android-ndk-r27d/ndk-build clean
+        ./android-ndk-r27d/ndk-build APP_MODULES=hev-socks5-tunnel -j$(nproc)
+    - name: Build android-bin
+      run: |
+        ./android-ndk-r27d/ndk-build clean
+        ./android-ndk-r27d/ndk-build APP_MODULES=hev-socks5-tunnel-bin -j$(nproc)
+        cp libs/armeabi-v7a/hev-socks5-tunnel-bin hev-socks5-tunnel-android-armeabi-v7a
+        cp libs/arm64-v8a/hev-socks5-tunnel-bin hev-socks5-tunnel-android-arm64-v8a
+        cp libs/x86/hev-socks5-tunnel-bin hev-socks5-tunnel-android-x86
+        cp libs/x86_64/hev-socks5-tunnel-bin hev-socks5-tunnel-android-x86_64
+    - name: Upload android-so  # 🔥 NUOVO
+      uses: actions/upload-artifact@v7
+      with:
+        name: hev-socks5-tunnel-so
+        path: libs/*/libhev-socks5-tunnel.so
+        if-no-files-found: error
+        retention-days: 30
+    - name: Upload                   # 🔥 MODIFICATO: ora uploada solo i bin
+      uses: actions/upload-artifact@v7
+      with:
+        name: hev-socks5-tunnel-android-bin  # 🔥 RINOMINATO per chiarezza
+        path: |
+          hev-socks5-tunnel-android-armeabi-v7a
+          hev-socks5-tunnel-android-arm64-v8a
+          hev-socks5-tunnel-android-x86
+          hev-socks5-tunnel-android-x86_64
+        if-no-files-found: error
+        retention-days: 1
